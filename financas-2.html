@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>Finanças</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#0d0f14;--surface:#161921;--surface2:#1e2230;--surface3:#252a3a;
+  --border:#2a3050;--accent:#4f8ef7;--accent2:#7c5cf7;--green:#30d98e;--red:#f7607c;
+  --gold:#f7c460;--text:#e8ecf5;--muted:#7a85a3;
+}
+html,body,#root{height:100%;width:100%;overflow:hidden}
+body{background:var(--bg);color:var(--text);font-family:'Sora',sans-serif;font-size:14px;line-height:1.5}
+input,select{font-family:inherit;font-size:14px;background:var(--surface3);border:1.5px solid var(--border);border-radius:8px;color:var(--text);padding:10px 12px;width:100%;outline:none;transition:.2s}
+input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(79,142,247,.15)}
+select option{background:var(--surface2)}
+button{font-family:inherit;cursor:pointer;border:none;outline:none}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+.mono{font-family:'JetBrains Mono',monospace}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes micPulse{0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(247,96,124,.4)}50%{transform:scale(1.08);box-shadow:0 0 0 6px rgba(247,96,124,.0)}}
+input[type=date]::-webkit-calendar-picker-indicator{filter:invert(1);opacity:.5}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useRef,useCallback,useMemo}=React;
+const initialState={bancos:[],centrosCusto:[],cartoes:[],lancamentos:[]};
+
+const Ic={
+  Bank:()=><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{width:'100%',height:'100%'}}><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7 12 2"/></svg>,
+  CC:()=><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{width:'100%',height:'100%'}}><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>,
+  Card:()=><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{width:'100%',height:'100%'}}><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/><circle cx="6" cy="15" r="1" fill="currentColor"/></svg>,
+  Plus:()=><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{width:'100%',height:'100%'}}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
+  Mic:({on})=><svg viewBox="0 0 24 24" fill={on?"currentColor":"none"} stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{width:'100%',height:'100%'}}><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>,
+  Receipt:()=><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{width:'100%',height:'100%'}}><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1z"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="12" y2="17"/></svg>,
+  Chart:()=><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{width:'100%',height:'100%'}}><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg>,
+  Arrow:({left})=><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{width:'100%',height:'100%',transform:left?'rotate(180deg)':'none'}}><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>,
+  Home:()=><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{width:'100%',height:'100%'}}><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>,
+  Settings:()=><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{width:'100%',height:'100%'}}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
+  Trash:()=><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{width:'100%',height:'100%'}}><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>,
+  Filter:()=><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{width:'100%',height:'100%'}}><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>,
+};
+
+const uid=()=>Math.random().toString(36).slice(2,9);
+const fmt=n=>(n??0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const fmtDate=d=>d?new Date(d+'T12:00:00').toLocaleDateString('pt-BR'):'';
+const today=()=>new Date().toISOString().split('T')[0];
+const firstOfMonth=()=>{const d=new Date();d.setDate(1);return d.toISOString().split('T')[0];};
+
+/* ── MicButton global ── */
+function MicBtn({onResult,onError,hint}){
+  const [active,setActive]=useState(false);
+  const ref=useRef(null);
+  const toggle=()=>{
+    const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+    if(!SR){onError&&onError('Microfone não suportado neste navegador');return;}
+    if(active){ref.current?.stop();return;}
+    const r=new SR();r.lang='pt-BR';r.continuous=false;r.interimResults=false;
+    r.onstart=()=>setActive(true);
+    r.onend=()=>setActive(false);
+    r.onresult=e=>onResult(e.results[0][0].transcript);
+    r.onerror=()=>{setActive(false);onError&&onError('Erro ao acessar microfone');};
+    ref.current=r;r.start();
+  };
+  return(
+    <button onClick={toggle} title={hint||'Usar microfone'}
+      style={{display:'flex',alignItems:'center',justifyContent:'center',width:36,height:36,borderRadius:8,flexShrink:0,
+        background:active?'var(--red)':'transparent',
+        border:active?'none':'1.5px solid var(--border)',
+        color:active?'#fff':'var(--muted)',
+        animation:active?'micPulse .9s infinite':'none',
+        transition:'background .2s,color .2s'}}>
+      <div style={{width:17,height:17}}><Ic.Mic on={active}/></div>
+    </button>
+  );
+}
+
+/* ── Campo texto + microfone ── */
+function MicField({label,placeholder,value,onChange,onToast,type='text',inputMode,mono,hint}){
+  const handleResult=txt=>{
+    if(type==='number'){
+      // tenta extrair número da fala: "cinquenta reais" → tenta, "50 reais" → 50
+      const n=txt.replace(/[^\d,\.]/g,'').replace(',','.');
+      if(n){onChange(n);onToast&&onToast(`${label}: ${n} ✓`);}
+      else onToast&&onToast(`Não entendi o valor "${txt}"`,'warn');
+    } else {
+      onChange(txt);onToast&&onToast(`${label} preenchido: "${txt}" ✓`);
+    }
+  };
+  return(
+    <div>
+      {label&&<label style={{fontSize:11,color:'var(--muted)',marginBottom:5,display:'block',fontWeight:600,letterSpacing:.5}}>{label}</label>}
+      <div style={{display:'flex',gap:6,alignItems:'center'}}>
+        <input type={type} inputMode={inputMode} placeholder={placeholder} value={value}
+          onChange={e=>onChange(e.target.value)}
+          className={mono?'mono':undefined}
+          style={{flex:1}}/>
+        <MicBtn onResult={handleResult} onError={e=>onToast&&onToast(e,'err')} hint={hint||`Ditar ${label}`}/>
+      </div>
+    </div>
+  );
+}
+
+/* ── Campo CC + microfone ── */
+function CCField({label,value,onChange,options,onToast}){
+  const handleResult=txt=>{
+    const spoken=txt.toLowerCase().trim();
+    const found=options.find(o=>o.nome.toLowerCase().includes(spoken)||spoken.includes(o.nome.toLowerCase().split(' ')[0]));
+    if(found){onChange(found.id);onToast&&onToast(`CC "${found.nome}" selecionado ✓`);}
+    else onToast&&onToast(`"${txt}" não encontrado nos centros de custo`,'warn');
+  };
+  return(
+    <div>
+      <label style={{fontSize:11,color:'var(--muted)',marginBottom:5,display:'block',fontWeight:600,letterSpacing:.5}}>{label}</label>
+      <div style={{display:'flex',gap:6,alignItems:'center'}}>
+        <select value={value} onChange={e=>onChange(e.target.value)} style={{flex:1}}>
+          <option value="">Selecionar...</option>
+          {options.map(c=><option key={c.id} value={c.id}>{c.nome} — {c.tipo==='credito'?'Crédito':'Débito'}</option>)}
+        </select>
+        <MicBtn onResult={handleResult} onError={e=>onToast&&onToast(e,'err')} hint="Dizer nome do CC"/>
+      </div>
+    </div>
+  );
+}
+
+function Lbl({c,children}){return <label style={{fontSize:11,color:'var(--muted)',marginBottom:5,display:'block',fontWeight:600,letterSpacing:.5}}>{children}</label>;}
+function Empty({txt}){return <div style={{textAlign:'center',color:'var(--muted)',fontSize:13,padding:'28px 0'}}>{txt}</div>;}
+function AddBtn({onClick,label='Adicionar'}){return <button onClick={onClick} style={{marginTop:10,width:'100%',background:'var(--accent)',borderRadius:9,padding:'11px',color:'#fff',fontWeight:700,fontSize:14,display:'flex',alignItems:'center',justifyContent:'center',gap:7}}><div style={{width:15,height:15}}><Ic.Plus/></div>{label}</button>;}
+function Row({label,sub,subColor,onDel,color}){return <div style={{background:'var(--surface)',border:'1.5px solid var(--border)',borderRadius:11,padding:'11px 12px',display:'flex',alignItems:'center',gap:10,marginBottom:7}}><div style={{width:9,height:9,borderRadius:'50%',background:color,flexShrink:0}}/><div style={{flex:1}}><div style={{fontWeight:600,fontSize:13}}>{label}</div>{sub&&<div style={{fontSize:11,color:subColor||'var(--muted)',marginTop:1}}>{sub}</div>}</div><button onClick={onDel} style={{background:'none',color:'var(--red)',width:18,height:18,display:'flex',flexShrink:0}}><Ic.Trash/></button></div>;}
+
+/* ══════════ APP ══════════ */
+function App(){
+  const [data,setData]=useState(()=>{try{return JSON.parse(localStorage.getItem('fin_data'))||initialState;}catch{return initialState;}});
+  const [screen,setScreen]=useState('home');
+  const [sub,setSub]=useState(null);
+  const [toast,setToast]=useState(null);
+
+  useEffect(()=>{localStorage.setItem('fin_data',JSON.stringify(data));},[data]);
+  const showToast=useCallback((msg,type='ok')=>{setToast({msg,type});setTimeout(()=>setToast(null),3000);},[]);
+  const save=useCallback((key,item)=>setData(d=>({...d,[key]:[...d[key],item]})),[]);
+  const remove=useCallback((key,id)=>setData(d=>({...d,[key]:d[key].filter(i=>i.id!==id)})),[]);
+  const addLan=useCallback(lan=>{setData(d=>{const next={...d,lancamentos:[...d.lancamentos,lan]};if(lan.cartaoId)next.cartoes=d.cartoes.map(c=>c.id===lan.cartaoId?{...c,usado:(c.usado||0)+lan.valor}:c);return next;});},[]);
+  const pagarCartao=useCallback((cid,valor)=>{setData(d=>({...d,cartoes:d.cartoes.map(c=>c.id===cid?{...c,usado:Math.max(0,(c.usado||0)-valor)}:c)}));showToast('Pagamento efetuado! Limite restaurado.');},[]);
+
+  const goBack=()=>sub?setSub(null):setScreen('home');
+  const subTitle={bancos:'Bancos',cc:'Centro de Custo',cartoes:'Cartões'};
+  const tc=toast?.type==='ok'?'var(--green)':toast?.type==='err'?'var(--red)':'var(--gold)';
+
+  const navItems=[
+    {id:'home',label:'Início',Icon:Ic.Home},
+    {id:'cadastros',label:'Cadastros',Icon:Ic.Settings},
+    {id:'extrato',label:'Extrato',Icon:Ic.Receipt},
+    {id:'relatorio',label:'Relatório',Icon:Ic.Chart},
+  ];
+
+  return(
+    <div style={{width:'100%',height:'100vh',display:'flex',flexDirection:'column',maxWidth:480,margin:'0 auto',position:'relative',overflow:'hidden',background:'var(--bg)'}}>
+      <div style={{background:'var(--surface)',borderBottom:'1px solid var(--border)',padding:'12px 16px',display:'flex',alignItems:'center',gap:10,flexShrink:0}}>
+        {screen!=='home'&&<button onClick={goBack} style={{background:'var(--surface2)',borderRadius:8,padding:8,color:'var(--muted)',display:'flex',flexShrink:0}}><div style={{width:17,height:17}}><Ic.Arrow left/></div></button>}
+        <div>
+          <div style={{fontSize:10,color:'var(--accent)',fontWeight:600,letterSpacing:2,textTransform:'uppercase'}}>{screen==='home'?'Dashboard':screen}</div>
+          <div style={{fontSize:18,fontWeight:700,letterSpacing:-0.5}}>{screen==='home'?'Finanças':screen==='cadastros'?(sub?subTitle[sub]:'Cadastros'):screen==='extrato'?'Extrato':'Relatório por CC'}</div>
+        </div>
+      </div>
+
+      <div style={{flex:1,overflowY:'auto',paddingBottom:76}}>
+        {screen==='home'&&<HomeScreen data={data} onNav={setScreen} onSubNav={s=>{setScreen('cadastros');setSub(s);}} addLan={addLan} showToast={showToast}/>}
+        {screen==='cadastros'&&<CadScreen sub={sub} setSub={setSub} data={data} save={save} remove={remove} showToast={showToast}/>}
+        {screen==='extrato'&&<ExtratoScreen data={data} pagarCartao={pagarCartao} showToast={showToast}/>}
+        {screen==='relatorio'&&<RelatorioScreen data={data}/>}
+      </div>
+
+      <div style={{position:'absolute',bottom:0,left:0,right:0,background:'var(--surface)',borderTop:'1px solid var(--border)',display:'flex',padding:'6px 0 10px'}}>
+        {navItems.map(({id,label,Icon})=>{const a=screen===id;return <button key={id} onClick={()=>{setScreen(id);if(id!=='cadastros')setSub(null);}} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:3,background:'none',color:a?'var(--accent)':'var(--muted)',padding:'4px 0',transition:'.2s'}}><div style={{width:21,height:21}}><Icon/></div><span style={{fontSize:9,fontWeight:a?600:400}}>{label}</span></button>;})}
+      </div>
+
+      {toast&&<div style={{position:'absolute',bottom:84,left:14,right:14,background:'var(--surface2)',border:`1.5px solid ${tc}`,borderRadius:12,padding:'11px 14px',display:'flex',alignItems:'center',gap:9,animation:'fadeIn .3s ease',zIndex:999,boxShadow:'0 8px 24px rgba(0,0,0,.5)'}}><div style={{width:8,height:8,borderRadius:'50%',background:tc,flexShrink:0}}/><span style={{fontSize:13,fontWeight:500}}>{toast.msg}</span></div>}
+    </div>
+  );
+}
+
+/* ══════════ HOME ══════════ */
+function HomeScreen({data,onNav,onSubNav,addLan,showToast}){
+  const [form,setForm]=useState({data:today(),historico:'',ccId:'',tipo:'debito',valor:'',cartaoId:''});
+  const set=k=>v=>setForm(f=>({...f,[k]:v}));
+  const cc=data.centrosCusto.find(c=>c.id===form.ccId);
+  const tipoFinal=cc?cc.tipo:form.tipo;
+  const saldo=data.lancamentos.reduce((s,l)=>l.tipo==='credito'?s+l.valor:s-l.valor,0);
+  const entradas=data.lancamentos.filter(l=>l.tipo==='credito').reduce((s,l)=>s+l.valor,0);
+  const saidas=data.lancamentos.filter(l=>l.tipo==='debito').reduce((s,l)=>s+l.valor,0);
+
+  const submit=()=>{
+    if(!form.data||!form.historico||!form.ccId||!form.valor){showToast('Preencha todos os campos','err');return;}
+    const v=parseFloat(String(form.valor).replace(',','.'));
+    if(isNaN(v)||v<=0){showToast('Valor inválido','err');return;}
+    addLan({id:uid(),data:form.data,historico:form.historico,ccId:form.ccId,tipo:tipoFinal,valor:v,cartaoId:form.cartaoId||null});
+    setForm({data:today(),historico:'',ccId:'',tipo:'debito',valor:'',cartaoId:''});
+    showToast('Lançamento registrado!');
+  };
+
+  return <div style={{padding:'14px',display:'flex',flexDirection:'column',gap:14,animation:'fadeIn .4s ease'}}>
+    {/* Saldo */}
+    <div style={{background:'linear-gradient(135deg,#1a2347,#0f1628)',borderRadius:18,padding:'18px',border:'1px solid var(--border)',position:'relative',overflow:'hidden'}}>
+      <div style={{position:'absolute',top:-20,right:-20,width:100,height:100,borderRadius:'50%',background:'rgba(79,142,247,.08)'}}/>
+      <div style={{fontSize:10,color:'var(--muted)',fontWeight:600,letterSpacing:2,textTransform:'uppercase',marginBottom:3}}>Saldo Atual</div>
+      <div className="mono" style={{fontSize:28,fontWeight:700,color:saldo>=0?'var(--green)':'var(--red)',letterSpacing:-1}}>{fmt(saldo)}</div>
+      <div style={{display:'flex',gap:24,marginTop:10}}>
+        <div><div style={{fontSize:10,color:'var(--muted)',marginBottom:1}}>Entradas</div><div className="mono" style={{fontSize:13,color:'var(--green)',fontWeight:600}}>{fmt(entradas)}</div></div>
+        <div><div style={{fontSize:10,color:'var(--muted)',marginBottom:1}}>Saídas</div><div className="mono" style={{fontSize:13,color:'var(--red)',fontWeight:600}}>{fmt(saidas)}</div></div>
+      </div>
+    </div>
+
+    {/* Atalhos */}
+    <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8}}>
+      {[{l:'Bancos',Ico:Ic.Bank,s:'bancos'},{l:'C.Custo',Ico:Ic.CC,s:'cc'},{l:'Cartões',Ico:Ic.Card,s:'cartoes'},{l:'Extrato',Ico:Ic.Receipt,a:()=>onNav('extrato')}].map(({l,Ico,s,a})=>(
+        <button key={l} onClick={a||(()=>onSubNav(s))} style={{background:'var(--surface)',border:'1.5px solid var(--border)',borderRadius:12,padding:'11px 6px',display:'flex',flexDirection:'column',alignItems:'center',gap:5,color:'var(--text)'}}>
+          <div style={{width:20,height:20,color:'var(--accent)'}}><Ico/></div>
+          <span style={{fontSize:9,fontWeight:600,color:'var(--muted)',textAlign:'center'}}>{l}</span>
+        </button>
+      ))}
+    </div>
+
+    {/* Cartões */}
+    {data.cartoes.map(c=>{const u=c.usado||0;const p=Math.min(100,(u/c.limite)*100);return <div key={c.id} style={{background:'var(--surface)',border:'1.5px solid var(--border)',borderRadius:12,padding:'12px 14px'}}>
+      <div style={{display:'flex',justifyContent:'space-between',marginBottom:5}}><span style={{fontWeight:600,fontSize:13}}>{c.nome}</span><span className="mono" style={{fontSize:11,color:'var(--muted)'}}>{fmt(c.limite-u)} livre</span></div>
+      <div style={{background:'var(--surface3)',borderRadius:4,height:5,overflow:'hidden'}}><div style={{width:`${p}%`,height:'100%',background:p>80?'var(--red)':p>50?'var(--gold)':'var(--green)',borderRadius:4,transition:'.5s'}}/></div>
+      <div style={{display:'flex',justifyContent:'space-between',marginTop:4}}><span className="mono" style={{fontSize:11,color:'var(--red)'}}>{fmt(u)}</span><span className="mono" style={{fontSize:11,color:'var(--muted)'}}>{fmt(c.limite)}</span></div>
+    </div>;})}
+
+    {/* Formulário */}
+    <div style={{background:'var(--surface)',border:'1.5px solid var(--border)',borderRadius:18,padding:14,display:'flex',flexDirection:'column',gap:11}}>
+      <div style={{fontSize:11,color:'var(--accent)',fontWeight:700,letterSpacing:1,textTransform:'uppercase'}}>🎙 Novo Lançamento — use o microfone em qualquer campo</div>
+
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+        <div>
+          <Lbl>Data</Lbl>
+          <input type="date" value={form.data} onChange={e=>setForm(f=>({...f,data:e.target.value}))}/>
+        </div>
+        <MicField label="Valor (R$)" placeholder="0.00" value={form.valor} onChange={set('valor')} onToast={showToast} type="number" inputMode="decimal" mono hint="Dizer o valor"/>
+      </div>
+
+      <MicField label="Histórico" placeholder="Descreva o lançamento..." value={form.historico} onChange={set('historico')} onToast={showToast} hint="Ditar descrição"/>
+
+      <CCField label="Centro de Custo" value={form.ccId} onChange={set('ccId')} options={data.centrosCusto} onToast={showToast}/>
+
+      {cc?(
+        <div style={{background:'var(--surface3)',borderRadius:8,padding:'8px 12px',display:'flex',alignItems:'center',gap:8}}>
+          <div style={{width:8,height:8,borderRadius:'50%',background:tipoFinal==='credito'?'var(--green)':'var(--red)'}}/>
+          <span style={{fontSize:12,color:'var(--muted)'}}>Tipo automático: <strong style={{color:tipoFinal==='credito'?'var(--green)':'var(--red)'}}>{tipoFinal==='credito'?'Crédito':'Débito'}</strong></span>
+        </div>
+      ):(
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+          {['debito','credito'].map(t=><button key={t} onClick={()=>setForm(f=>({...f,tipo:t}))} style={{padding:'9px',borderRadius:8,border:`2px solid ${form.tipo===t?(t==='credito'?'var(--green)':'var(--red)'):'var(--border)'}`,background:form.tipo===t?(t==='credito'?'rgba(48,217,142,.15)':'rgba(247,96,124,.15)'):'var(--surface3)',color:form.tipo===t?(t==='credito'?'var(--green)':'var(--red)'):'var(--muted)',fontWeight:600,fontSize:13}}>{t==='credito'?'Crédito':'Débito'}</button>)}
+        </div>
+      )}
+
+      {data.cartoes.length>0&&<div>
+        <Lbl>Cartão de Crédito (opcional)</Lbl>
+        <select value={form.cartaoId} onChange={e=>setForm(f=>({...f,cartaoId:e.target.value}))}>
+          <option value="">Nenhum</option>
+          {data.cartoes.map(c=><option key={c.id} value={c.id}>{c.nome} (livre: {fmt(c.limite-(c.usado||0))})</option>)}
+        </select>
+      </div>}
+
+      <button onClick={submit} style={{background:'var(--accent)',borderRadius:10,padding:'12px',color:'#fff',fontWeight:700,fontSize:15,display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
+        <div style={{width:17,height:17}}><Ic.Plus/></div> Registrar Lançamento
+      </button>
+    </div>
+
+    {/* Recentes */}
+    {data.lancamentos.length>0&&<div>
+      <div style={{fontSize:10,color:'var(--muted)',fontWeight:600,letterSpacing:2,textTransform:'uppercase',marginBottom:8}}>Últimos Lançamentos</div>
+      {[...data.lancamentos].reverse().slice(0,6).map(l=>{const cc2=data.centrosCusto.find(c=>c.id===l.ccId);return <div key={l.id} style={{background:'var(--surface)',border:'1.5px solid var(--border)',borderRadius:11,padding:'10px 12px',display:'flex',alignItems:'center',gap:10,marginBottom:7}}>
+        <div style={{width:32,height:32,borderRadius:9,background:l.tipo==='credito'?'rgba(48,217,142,.15)':'rgba(247,96,124,.15)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,fontWeight:700,color:l.tipo==='credito'?'var(--green)':'var(--red)',flexShrink:0}}>{l.tipo==='credito'?'+':'−'}</div>
+        <div style={{flex:1,minWidth:0}}><div style={{fontWeight:600,fontSize:13,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{l.historico}</div><div style={{fontSize:11,color:'var(--muted)'}}>{fmtDate(l.data)} · {cc2?.nome||'—'}</div></div>
+        <div className="mono" style={{fontSize:13,fontWeight:700,color:l.tipo==='credito'?'var(--green)':'var(--red)',flexShrink:0}}>{l.tipo==='credito'?'+':'−'}{fmt(l.valor)}</div>
+      </div>;})}
+    </div>}
+  </div>;
+}
+
+/* ══════════ CADASTROS ══════════ */
+function CadScreen({sub,setSub,data,save,remove,showToast}){
+  if(!sub) return <div style={{padding:'14px',animation:'fadeIn .4s ease'}}>
+    {[{id:'bancos',l:'Bancos',d:`${data.bancos.length} cadastrado(s)`,Ico:Ic.Bank,c:'var(--accent)'},
+      {id:'cc',l:'Centro de Custo',d:`${data.centrosCusto.length} cadastrado(s)`,Ico:Ic.CC,c:'var(--accent2)'},
+      {id:'cartoes',l:'Cartões de Crédito',d:`${data.cartoes.length} cadastrado(s)`,Ico:Ic.Card,c:'var(--gold)'}
+    ].map(({id,l,d,Ico,c})=>(
+      <button key={id} onClick={()=>setSub(id)} style={{background:'var(--surface)',border:'1.5px solid var(--border)',borderRadius:14,padding:'15px',display:'flex',alignItems:'center',gap:13,color:'var(--text)',textAlign:'left',width:'100%',marginBottom:10}}>
+        <div style={{width:44,height:44,borderRadius:12,background:`color-mix(in srgb, ${c} 15%, transparent)`,display:'flex',alignItems:'center',justifyContent:'center',color:c,flexShrink:0}}><div style={{width:21,height:21}}><Ico/></div></div>
+        <div style={{flex:1}}><div style={{fontWeight:700,fontSize:14}}>{l}</div><div style={{fontSize:12,color:'var(--muted)',marginTop:1}}>{d}</div></div>
+        <div style={{width:17,height:17,color:'var(--muted)'}}><Ic.Arrow/></div>
+      </button>
+    ))}
+  </div>;
+  if(sub==='bancos') return <BancosForm data={data} save={save} remove={remove} showToast={showToast}/>;
+  if(sub==='cc') return <CCForm data={data} save={save} remove={remove} showToast={showToast}/>;
+  if(sub==='cartoes') return <CartoesForm data={data} save={save} remove={remove} showToast={showToast}/>;
+  return null;
+}
+
+function BancosForm({data,save,remove,showToast}){
+  const [nome,setNome]=useState('');
+  const add=()=>{if(!nome.trim()){showToast('Informe o nome','err');return;}save('bancos',{id:uid(),nome:nome.trim()});setNome('');showToast('Banco cadastrado!');};
+  return <div style={{padding:'14px',animation:'fadeIn .4s ease'}}>
+    <div style={{background:'var(--surface)',border:'1.5px solid var(--border)',borderRadius:14,padding:13,marginBottom:12}}>
+      <MicField label="Nome do Banco" placeholder="Ex: Nubank, Itaú, Bradesco..." value={nome} onChange={setNome} onToast={showToast}/>
+      <AddBtn onClick={add}/>
+    </div>
+    {data.bancos.length===0?<Empty txt="Nenhum banco cadastrado"/>:data.bancos.map(b=><Row key={b.id} label={b.nome} color="var(--accent)" onDel={()=>remove('bancos',b.id)}/>)}
+  </div>;
+}
+
+function CCForm({data,save,remove,showToast}){
+  const [nome,setNome]=useState('');const [tipo,setTipo]=useState('debito');
+  const add=()=>{if(!nome.trim()){showToast('Informe o nome','err');return;}save('centrosCusto',{id:uid(),nome:nome.trim(),tipo});setNome('');showToast('CC cadastrado!');};
+  return <div style={{padding:'14px',animation:'fadeIn .4s ease'}}>
+    <div style={{background:'var(--surface)',border:'1.5px solid var(--border)',borderRadius:14,padding:13,marginBottom:12}}>
+      <div style={{marginBottom:10}}><MicField label="Nome do CC" placeholder="Ex: Alimentação, Salário..." value={nome} onChange={setNome} onToast={showToast}/></div>
+      <Lbl>Tipo</Lbl>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+        {['debito','credito'].map(t=><button key={t} onClick={()=>setTipo(t)} style={{padding:'9px',borderRadius:8,border:`2px solid ${tipo===t?(t==='credito'?'var(--green)':'var(--red)'):'var(--border)'}`,background:tipo===t?(t==='credito'?'rgba(48,217,142,.15)':'rgba(247,96,124,.15)'):'var(--surface3)',color:tipo===t?(t==='credito'?'var(--green)':'var(--red)'):'var(--muted)',fontWeight:600,fontSize:13}}>{t==='credito'?'Crédito':'Débito'}</button>)}
+      </div>
+      <AddBtn onClick={add}/>
+    </div>
+    {data.centrosCusto.length===0?<Empty txt="Nenhum CC cadastrado"/>:data.centrosCusto.map(c=><Row key={c.id} label={c.nome} sub={c.tipo==='credito'?'Crédito':'Débito'} subColor={c.tipo==='credito'?'var(--green)':'var(--red)'} color="var(--accent2)" onDel={()=>remove('centrosCusto',c.id)}/>)}
+  </div>;
+}
+
+function CartoesForm({data,save,remove,showToast}){
+  const [nome,setNome]=useState('');const [limite,setLimite]=useState('');
+  const add=()=>{
+    if(!nome.trim()||!limite){showToast('Preencha nome e limite','err');return;}
+    const lim=parseFloat(String(limite).replace(',','.'));
+    if(isNaN(lim)||lim<=0){showToast('Limite inválido','err');return;}
+    save('cartoes',{id:uid(),nome:nome.trim(),limite:lim,usado:0});setNome('');setLimite('');showToast('Cartão cadastrado!');
+  };
+  return <div style={{padding:'14px',animation:'fadeIn .4s ease'}}>
+    <div style={{background:'var(--surface)',border:'1.5px solid var(--border)',borderRadius:14,padding:13,marginBottom:12}}>
+      <div style={{marginBottom:10}}><MicField label="Nome do Cartão" placeholder="Ex: Nubank Roxinho..." value={nome} onChange={setNome} onToast={showToast}/></div>
+      <MicField label="Limite (R$)" placeholder="5000.00" value={limite} onChange={setLimite} onToast={showToast} type="number" inputMode="decimal" mono hint="Dizer o limite"/>
+      <AddBtn onClick={add}/>
+    </div>
+    {data.cartoes.length===0?<Empty txt="Nenhum cartão cadastrado"/>:data.cartoes.map(c=>{const u=c.usado||0;const p=Math.min(100,(u/c.limite)*100);return <div key={c.id} style={{background:'var(--surface)',border:'1.5px solid var(--border)',borderRadius:11,padding:'11px 12px',marginBottom:8}}>
+      <div style={{display:'flex',justifyContent:'space-between',marginBottom:5}}><span style={{fontWeight:600}}>{c.nome}</span><button onClick={()=>remove('cartoes',c.id)} style={{background:'none',color:'var(--red)',width:18,height:18,display:'flex'}}><Ic.Trash/></button></div>
+      <div style={{background:'var(--surface3)',borderRadius:4,height:5,overflow:'hidden',marginBottom:4}}><div style={{width:`${p}%`,height:'100%',background:p>80?'var(--red)':'var(--green)',borderRadius:4}}/></div>
+      <div className="mono" style={{fontSize:12,color:'var(--muted)'}}>Limite: {fmt(c.limite)} · Usado: <span style={{color:'var(--red)'}}>{fmt(u)}</span></div>
+    </div>;})}
+  </div>;
+}
+
+/* ══════════ EXTRATO ══════════ */
+function ExtratoScreen({data,pagarCartao,showToast}){
+  const [de,setDe]=useState(firstOfMonth);const [ate,setAte]=useState(today);
+  const [filtroCC,setFiltroCC]=useState('');const [pagando,setPagando]=useState(null);const [valorPag,setValorPag]=useState('');
+  const filtrados=data.lancamentos.filter(l=>l.data>=de&&l.data<=ate&&(!filtroCC||l.ccId===filtroCC));
+  const totalCred=filtrados.filter(l=>l.tipo==='credito').reduce((s,l)=>s+l.valor,0);
+  const totalDeb=filtrados.filter(l=>l.tipo==='debito').reduce((s,l)=>s+l.valor,0);
+  const saldo=totalCred-totalDeb;
+  const pagar=()=>{const v=parseFloat(String(valorPag).replace(',','.'));if(isNaN(v)||v<=0)return;pagarCartao(pagando,v);setPagando(null);setValorPag('');};
+  return <div style={{padding:'14px',animation:'fadeIn .4s ease'}}>
+    <div style={{background:'var(--surface)',border:'1.5px solid var(--border)',borderRadius:14,padding:13,marginBottom:12}}>
+      <div style={{fontSize:10,color:'var(--muted)',fontWeight:600,letterSpacing:2,textTransform:'uppercase',marginBottom:9,display:'flex',alignItems:'center',gap:5}}><div style={{width:12,height:12}}><Ic.Filter/></div> Período</div>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:10}}>
+        <div><Lbl>De</Lbl><input type="date" value={de} onChange={e=>setDe(e.target.value)}/></div>
+        <div><Lbl>Até</Lbl><input type="date" value={ate} onChange={e=>setAte(e.target.value)}/></div>
+      </div>
+      <Lbl>Centro de Custo</Lbl>
+      <select value={filtroCC} onChange={e=>setFiltroCC(e.target.value)}><option value="">Todos</option>{data.centrosCusto.map(c=><option key={c.id} value={c.id}>{c.nome}</option>)}</select>
+    </div>
+    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginBottom:12}}>
+      {[{l:'Entradas',v:totalCred,c:'var(--green)'},{l:'Saídas',v:totalDeb,c:'var(--red)'},{l:'Saldo',v:saldo,c:saldo>=0?'var(--green)':'var(--red)'}].map(({l,v,c})=>(
+        <div key={l} style={{background:'var(--surface)',border:'1.5px solid var(--border)',borderRadius:11,padding:'10px 7px',textAlign:'center'}}>
+          <div style={{fontSize:10,color:'var(--muted)',marginBottom:2}}>{l}</div>
+          <div className="mono" style={{fontSize:12,fontWeight:700,color:c}}>{fmt(v)}</div>
+        </div>
+      ))}
+    </div>
+    {data.cartoes.length>0&&<div style={{background:'var(--surface)',border:'1.5px solid var(--border)',borderRadius:14,padding:13,marginBottom:12}}>
+      <div style={{fontSize:10,color:'var(--muted)',fontWeight:600,letterSpacing:2,textTransform:'uppercase',marginBottom:9}}>Pagar Fatura</div>
+      {pagando?(
+        <div style={{display:'flex',flexDirection:'column',gap:9}}>
+          <div style={{fontSize:13,color:'var(--muted)'}}>Cartão: <strong style={{color:'var(--text)'}}>{data.cartoes.find(c=>c.id===pagando)?.nome}</strong></div>
+          <MicField label="Valor do pagamento" placeholder="0.00" value={valorPag} onChange={setValorPag} onToast={showToast} type="number" inputMode="decimal" mono/>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+            <button onClick={()=>setPagando(null)} style={{padding:'10px',borderRadius:8,border:'1.5px solid var(--border)',background:'none',color:'var(--muted)',fontWeight:600}}>Cancelar</button>
+            <button onClick={pagar} style={{padding:'10px',borderRadius:8,background:'var(--green)',color:'#fff',fontWeight:700}}>Confirmar</button>
+          </div>
+        </div>
+      ):data.cartoes.map(c=><button key={c.id} onClick={()=>setPagando(c.id)} style={{background:'var(--surface2)',border:'1.5px solid var(--border)',borderRadius:10,padding:'10px 12px',display:'flex',justifyContent:'space-between',alignItems:'center',color:'var(--text)',width:'100%',marginBottom:7}}><span style={{fontWeight:600,fontSize:13}}>{c.nome}</span><span className="mono" style={{fontSize:12,color:'var(--red)'}}>Fatura: {fmt(c.usado||0)}</span></button>)}
+    </div>}
+    <div style={{fontSize:10,color:'var(--muted)',fontWeight:600,letterSpacing:2,textTransform:'uppercase',marginBottom:8}}>{filtrados.length} lançamento(s)</div>
+    {filtrados.length===0?<Empty txt="Nenhum lançamento no período"/>:[...filtrados].reverse().map(l=>{
+      const cc=data.centrosCusto.find(c=>c.id===l.ccId);const cartao=data.cartoes.find(c=>c.id===l.cartaoId);
+      return <div key={l.id} style={{background:'var(--surface)',border:'1.5px solid var(--border)',borderRadius:11,padding:'10px 12px',display:'flex',alignItems:'center',gap:10,marginBottom:7}}>
+        <div style={{width:32,height:32,borderRadius:9,background:l.tipo==='credito'?'rgba(48,217,142,.15)':'rgba(247,96,124,.15)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,fontWeight:700,color:l.tipo==='credito'?'var(--green)':'var(--red)',flexShrink:0}}>{l.tipo==='credito'?'+':'−'}</div>
+        <div style={{flex:1,minWidth:0}}><div style={{fontWeight:600,fontSize:13,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{l.historico}</div><div style={{fontSize:11,color:'var(--muted)'}}>{fmtDate(l.data)} · {cc?.nome||'—'}{cartao?` · ${cartao.nome}`:''}</div></div>
+        <div className="mono" style={{fontSize:13,fontWeight:700,color:l.tipo==='credito'?'var(--green)':'var(--red)',flexShrink:0}}>{l.tipo==='credito'?'+':'−'}{fmt(l.valor)}</div>
+      </div>;
+    })}
+  </div>;
+}
+
+/* ══════════ RELATÓRIO POR CC ══════════ */
+function RelatorioScreen({data}){
+  const [de,setDe]=useState(firstOfMonth);const [ate,setAte]=useState(today);
+  const [visao,setVisao]=useState('ambos');
+
+  const filtrados=useMemo(()=>data.lancamentos.filter(l=>l.data>=de&&l.data<=ate),[data.lancamentos,de,ate]);
+
+  const grupos=useMemo(()=>{
+    const map={};
+    filtrados.forEach(l=>{
+      const cc=data.centrosCusto.find(c=>c.id===l.ccId);
+      const key=l.ccId||'_sem';
+      if(!map[key]) map[key]={id:key,nome:cc?.nome||'Sem CC',tipo:cc?.tipo||'debito',credito:0,debito:0,qtd:0};
+      if(l.tipo==='credito') map[key].credito+=l.valor; else map[key].debito+=l.valor;
+      map[key].qtd++;
+    });
+    return Object.values(map).sort((a,b)=>(b.credito+b.debito)-(a.credito+a.debito));
+  },[filtrados,data.centrosCusto]);
+
+  const totalCred=filtrados.filter(l=>l.tipo==='credito').reduce((s,l)=>s+l.valor,0);
+  const totalDeb=filtrados.filter(l=>l.tipo==='debito').reduce((s,l)=>s+l.valor,0);
+  const maxValor=Math.max(...grupos.map(g=>Math.max(g.credito,g.debito)),1);
+
+  const gruposFiltrados=grupos.filter(g=>visao==='credito'?g.credito>0:visao==='debito'?g.debito>0:true);
+
+  return <div style={{padding:'14px',animation:'fadeIn .4s ease'}}>
+    {/* Filtro */}
+    <div style={{background:'var(--surface)',border:'1.5px solid var(--border)',borderRadius:14,padding:13,marginBottom:12}}>
+      <div style={{fontSize:10,color:'var(--muted)',fontWeight:600,letterSpacing:2,textTransform:'uppercase',marginBottom:9,display:'flex',alignItems:'center',gap:5}}><div style={{width:12,height:12}}><Ic.Filter/></div> Período</div>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:10}}>
+        <div><Lbl>De</Lbl><input type="date" value={de} onChange={e=>setDe(e.target.value)}/></div>
+        <div><Lbl>Até</Lbl><input type="date" value={ate} onChange={e=>setAte(e.target.value)}/></div>
+      </div>
+      <Lbl>Exibir</Lbl>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6}}>
+        {[{v:'ambos',l:'Todos'},{v:'credito',l:'Receitas'},{v:'debito',l:'Despesas'}].map(({v,l})=>(
+          <button key={v} onClick={()=>setVisao(v)} style={{padding:'8px 4px',borderRadius:8,border:`2px solid ${visao===v?'var(--accent)':'var(--border)'}`,background:visao===v?'rgba(79,142,247,.15)':'var(--surface3)',color:visao===v?'var(--accent)':'var(--muted)',fontWeight:600,fontSize:12}}>{l}</button>
+        ))}
+      </div>
+    </div>
+
+    {/* Totais */}
+    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:10}}>
+      <div style={{background:'rgba(48,217,142,.08)',border:'1.5px solid rgba(48,217,142,.3)',borderRadius:12,padding:'12px 10px',textAlign:'center'}}>
+        <div style={{fontSize:10,color:'var(--green)',fontWeight:700,marginBottom:3,textTransform:'uppercase',letterSpacing:1}}>Receitas</div>
+        <div className="mono" style={{fontSize:16,fontWeight:700,color:'var(--green)'}}>{fmt(totalCred)}</div>
+        <div style={{fontSize:10,color:'var(--muted)',marginTop:2}}>{filtrados.filter(l=>l.tipo==='credito').length} lançamentos</div>
+      </div>
+      <div style={{background:'rgba(247,96,124,.08)',border:'1.5px solid rgba(247,96,124,.3)',borderRadius:12,padding:'12px 10px',textAlign:'center'}}>
+        <div style={{fontSize:10,color:'var(--red)',fontWeight:700,marginBottom:3,textTransform:'uppercase',letterSpacing:1}}>Despesas</div>
+        <div className="mono" style={{fontSize:16,fontWeight:700,color:'var(--red)'}}>{fmt(totalDeb)}</div>
+        <div style={{fontSize:10,color:'var(--muted)',marginTop:2}}>{filtrados.filter(l=>l.tipo==='debito').length} lançamentos</div>
+      </div>
+    </div>
+
+    {/* Resultado */}
+    <div style={{background:'linear-gradient(135deg,#1a2347,#0f1628)',border:'1px solid var(--border)',borderRadius:12,padding:'11px 14px',marginBottom:14,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+      <span style={{fontSize:12,color:'var(--muted)',fontWeight:600}}>Resultado do Período</span>
+      <span className="mono" style={{fontSize:16,fontWeight:700,color:(totalCred-totalDeb)>=0?'var(--green)':'var(--red)'}}>{fmt(totalCred-totalDeb)}</span>
+    </div>
+
+    <div style={{fontSize:10,color:'var(--muted)',fontWeight:600,letterSpacing:2,textTransform:'uppercase',marginBottom:10}}>{gruposFiltrados.length} centro(s) de custo</div>
+
+    {gruposFiltrados.length===0?<Empty txt="Nenhum dado no período"/>:gruposFiltrados.map(g=>{
+      const saldoCC=g.credito-g.debito;
+      const pctCred=totalCred>0?(g.credito/totalCred)*100:0;
+      const pctDeb=totalDeb>0?(g.debito/totalDeb)*100:0;
+      const barCred=maxValor>0?(g.credito/maxValor)*100:0;
+      const barDeb=maxValor>0?(g.debito/maxValor)*100:0;
+
+      return <div key={g.id} style={{background:'var(--surface)',border:'1.5px solid var(--border)',borderRadius:14,padding:'13px',marginBottom:10}}>
+        {/* Cabeçalho CC */}
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:11}}>
+          <div>
+            <div style={{fontWeight:700,fontSize:14}}>{g.nome}</div>
+            <div style={{fontSize:11,color:'var(--muted)',marginTop:1}}>{g.qtd} lançamento(s)</div>
+          </div>
+          <div style={{textAlign:'right'}}>
+            <div className="mono" style={{fontSize:14,fontWeight:700,color:saldoCC>=0?'var(--green)':'var(--red)'}}>{fmt(saldoCC)}</div>
+            <div style={{fontSize:10,color:'var(--muted)'}}>resultado</div>
+          </div>
+        </div>
+
+        {/* Barra Receita */}
+        {(visao==='ambos'||visao==='credito')&&g.credito>0&&<div style={{marginBottom:8}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}}>
+            <span style={{fontSize:11,color:'var(--green)',fontWeight:600}}>↑ Receita</span>
+            <span style={{display:'flex',gap:6,alignItems:'center'}}>
+              <span className="mono" style={{fontSize:11,color:'var(--green)'}}>{fmt(g.credito)}</span>
+              <span style={{fontSize:10,color:'var(--muted)',background:'var(--surface3)',borderRadius:4,padding:'1px 5px'}}>{pctCred.toFixed(1)}%</span>
+            </span>
+          </div>
+          <div style={{background:'var(--surface3)',borderRadius:5,height:8,overflow:'hidden'}}>
+            <div style={{width:`${barCred}%`,height:'100%',background:'linear-gradient(90deg,#1db870,var(--green))',borderRadius:5,transition:'width .6s ease'}}/>
+          </div>
+        </div>}
+
+        {/* Barra Despesa */}
+        {(visao==='ambos'||visao==='debito')&&g.debito>0&&<div>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}}>
+            <span style={{fontSize:11,color:'var(--red)',fontWeight:600}}>↓ Despesa</span>
+            <span style={{display:'flex',gap:6,alignItems:'center'}}>
+              <span className="mono" style={{fontSize:11,color:'var(--red)'}}>{fmt(g.debito)}</span>
+              <span style={{fontSize:10,color:'var(--muted)',background:'var(--surface3)',borderRadius:4,padding:'1px 5px'}}>{pctDeb.toFixed(1)}%</span>
+            </span>
+          </div>
+          <div style={{background:'var(--surface3)',borderRadius:5,height:8,overflow:'hidden'}}>
+            <div style={{width:`${barDeb}%`,height:'100%',background:'linear-gradient(90deg,#c9415a,var(--red))',borderRadius:5,transition:'width .6s ease'}}/>
+          </div>
+        </div>}
+      </div>;
+    })}
+  </div>;
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
