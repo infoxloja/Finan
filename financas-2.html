@@ -384,7 +384,7 @@ function ExtratoScreen({data,pagarCartao,showToast}){
     const linhas=[...filtrados].reverse().map(l=>{
       const cc=data.centrosCusto.find(c=>c.id===l.ccId);
       const cartao=data.cartoes.find(c=>c.id===l.cartaoId);
-      return (l.tipo==='credito'?'[+]':'[-]')+' '+fmtDate(l.data)+' | '+l.historico+' | '+(cc?.nome||'—')+(cartao?' ('+cartao.nome+')')+'  '+(l.tipo==='credito'?'+':'-')+fmt(l.valor);
+      return (l.tipo==='credito'?'+':'-')+' '+fmtDate(l.data)+' | '+l.historico+' | '+(cc?.nome||'—')+(cartao?' ('+cartao.nome+')':'')+'  '+(l.tipo==='credito'?'+':'-')+fmt(l.valor);
     });
     const win=window.open('','_blank','width=800,height=600');
     if(!win){showToast('Permita pop-ups para exportar PDF','warn');return;}
